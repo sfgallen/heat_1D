@@ -3,7 +3,7 @@
 % Batt (2006).
 % Author: Sean F. Gallen
 % email: sean.gallen[at]colostate.edu
-% Date modified: 05/26/2021
+% Date modified: 12/07/2019
 
 %% clear workspace
 clear
@@ -34,7 +34,7 @@ Am = 0.02e-6;       % heat production in mantle
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% Declare inital variables
+%%
 Z = Zmin:dZ:Zmax;   % Z (depth) vector
 
 % derive heat production profile
@@ -43,6 +43,7 @@ A(Z >= Zc) = Am;
 
 A = A./(K*p).*3.154e+7.*1e6;  % C/Myr
 
+%%
 % estimate To with ei or ~0 with Brauns peclet number equation
 Pe = (1e-9.*max(Z))/k; % peclect number from braun
 To = (1-exp(1).^(-Pe.*(Z./max(Z))))./(1-exp(1).^(-Pe));
@@ -54,7 +55,6 @@ dt = lambda*(dZ^2)/k;
 % cast time vector for numerical calculations
 time_v = 0:dt:run_time;
 
-%% plot initial condition
 figure(1)
 hold off
 plot(To,Z,'k-'); hold on
@@ -62,7 +62,6 @@ axis ij
 xlabel('Temperature (^oC)')
 ylabel('Depth (km)')
 
-%% get things prepped to enter time loop
 % set up plotting for transient profiles
 t_plots = round(round(length(time_v))./n_plots);
 n_plots = round(round(length(time_v))./t_plots);
@@ -78,7 +77,6 @@ To_pad(2:end-1) = To;
 To_pad(1) = Ts;
 To_pad(end) = Tb;
 
-%% run the time loop
 h = waitbar(0,'running thermal code...');
 for t = 1:length(time_v)
 
@@ -109,6 +107,12 @@ for t = 1:length(time_v)
 end
 close(h)
 
-%% final model position
+% final model position
 plot(To,Z,'k-','linewidth',2); hold on
+
+
+% Batt Brandon (2002) steady-state solution
+Tz = Ts + (Tb-Ts+((A.*Zmax)./ei)).*((1-exp(-ei.*Z./k))./(1-exp(-ei.*Zmax./k)))-((A.*Z)./ei);
+plot(Tz,Z,'k--','linewidth',2,'color',[0.5 0.5 0.5]); hold on
+
 

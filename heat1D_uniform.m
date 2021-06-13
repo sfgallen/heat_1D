@@ -5,54 +5,37 @@
 % email: sean.gallen[at]colostate.edu
 % Date modified: 12/07/2019
 
+%% clear work space
+clear
+clc
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% set parameters
-run_time = 250;     % run time in Ma.
+run_time = 100;     % run time in Ma.
 ei = 0.5;           % initial erosion rate in km/Myr
 Ts = 10;            % surface temperature in degrees C
-Tb = 1300;          % temperature at the base of the lithosphere
+Tb = 540;           % temperature at the base of the crust
 k = 25;             % thermal conduction coefficient
+A = 4.5;            % crustal heat production in C/Myr
 lambda = 0.4;       % this is for stability, usually between 0.5 and 0.05 is good.
                     % reduce the number of the problem becomes unstable
-                    
+                   
 Zmin = 0;           % min Z in terms of km
-Zmax = 100;         % max Z in terms of km (approximation of base of lithosphere
+Zmax = 50;         % max Z in terms of km (approximation of base of lithosphere
 dZ = 0.25;          % increments of Z in km -- as this decreases lambda needs to decrease
 
-n_plots = 25;       % number of transient thermal geotherms plotted
-
-%%
-% derive parameters for lithospheric heat production profile after Hasterok 
-% and Chapman (2006)
-K = 1000;           % thermal conductivity
-P = 0.6;            % Partition Coefficient Pollack and Chapman (1977)
-qo = 75;            % surface hear flow
-qr = P*qo;          % reduced heat flow
-D = 8;              % charateristic thickness of heat producing layer
-Zc = 35;            % crustal thickness
-Zlc = 17.5;         % depth to lower crust
-Alc = 0.4;          % heat production in lower crust
-Am = 0.02;          % heat production in mantle
-Ao = (1-P)*qo/D;    % surface heat production
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Z = Zmin:dZ:Zmax;   % Z (depth) vector
 
-% derive heat production profile 
-A = Ao*exp(-Z/D);
-A(Z >= Zlc) = Alc;
-A(Z >= Zc) = Am;
-
-A = A./1e6; % from uW to W
-A = A./3000; % divide by some average density (here arbitarity 3000 kg/m^3)
-
-AK = A/K;    % divide by conductivity to get things interms of temp. Note: set this to zero if you want to ignore lithospheric heat production
+n_plots = 25;       % number of transient thermal geotherms plotted
 
 %%
 % estimate To with ei or ~0 with Brauns peclet number equation
 Pe = (1e-9.*max(Z))/k; % peclect number from braun
 To = (1-exp(1).^(-Pe.*(Z./max(Z))))./(1-exp(1).^(-Pe));
 To = To.*(Tb-Ts)+Ts;
+
+% Batt Brandon (2002) final steady-state solution
+Tz = Ts + (Tb-Ts+((A.*Zmax)./ei)).*((1-exp(-ei.*Z./k))./(1-exp(-ei.*Zmax./k)))-((A.*Z)./ei);
 
 % make dt such that lambda is 0.5
 dt = lambda*(dZ^2)/k;
@@ -63,6 +46,7 @@ time_v = 0:dt:run_time;
 figure(1)
 hold off
 plot(To,Z,'k-'); hold on
+plot(Tz,Z,'k--','linewidth',2,'color',[0.5 0.5 0.5]);
 axis ij
 xlabel('Temperature (^oC)')
 ylabel('Depth (km)')
@@ -93,13 +77,15 @@ for t = 1:length(time_v)
     
     % add the conduction and advection to gether to predict change in
     % thermal profile
-    dTdt = ddTddz+dTdz+(AK.*dt.*1e6);
+    dTdt = ddTddz+dTdz+(A.*dt);
     
     % add to previous thermal state
     To = To + dTdt;
 
-    % update the finite difference vector
+    % update the finite difference vector and deal with boundaries
     To_pad(2:end-1) = To;
+    To(1) = Ts;
+    To(end) = Tb;
     
     % plot as needed
     if rem(t,t_plots) == 0
